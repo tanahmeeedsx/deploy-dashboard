@@ -1,0 +1,27 @@
+# Single-stage Dockerfile
+# Node.js builds the app AND serves it from the same image.
+# The final image still contains Node.js, npm, devDependencies and the source code.
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy dependency manifests first so this layer stays cached until dependencies change
+COPY package*.json ./
+
+RUN npm ci
+
+COPY . .
+
+# Vite reads VITE_* variables at build time and bakes them into the JS bundle
+ENV VITE_BUILD_TYPE="Single-stage Build"
+
+RUN npm run build
+
+# Vite preview listens on port 4173 by default
+EXPOSE 4173
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://localhost:4173/ || exit 1
+
+CMD ["npm", "run", "preview"]
